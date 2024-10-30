@@ -9,7 +9,7 @@ const contractsToExtract = [
   'IAVSDirectory',
   'IDelegationManager',
   'ECDSAStakeRegistry',
-  'HelloWorldServiceManager'
+  'CrowdFunding'
 ];
 
 if (!fs.existsSync(abiDir)) {

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.12;
 
-import {HelloWorldServiceManager} from "../src/HelloWorldServiceManager.sol";
+import {CrowdFunding} from "../src/CrowdFunding.sol";
 import {MockAVSDeployer} from "@eigenlayer-middleware/test/utils/MockAVSDeployer.sol";
 import {ECDSAStakeRegistry} from "@eigenlayer-middleware/src/unaudited/ECDSAStakeRegistry.sol";
 import {Vm} from "forge-std/Vm.sol";
@@ -23,7 +23,7 @@ import {ISignatureUtils} from "@eigenlayer/contracts/interfaces/ISignatureUtils.
 import {AVSDirectory} from "@eigenlayer/contracts/core/AVSDirectory.sol";
 import {IAVSDirectory} from "@eigenlayer/contracts/interfaces/IAVSDirectory.sol";
 import {Test, console2 as console} from "forge-std/Test.sol";
-import {IHelloWorldServiceManager} from "../src/IHelloWorldServiceManager.sol";
+import {ICrowdFunding} from "../src/ICrowdFunding.sol";
 import {ECDSAUpgradeable} from
     "@openzeppelin-upgrades/contracts/utils/cryptography/ECDSAUpgradeable.sol";
 
@@ -95,7 +95,7 @@ contract HelloWorldTaskManagerSetup is Test {
         vm.label(coreDeployment.pauserRegistry, "PauserRegistry");
         vm.label(coreDeployment.strategyFactory, "StrategyFactory");
         vm.label(coreDeployment.strategyBeacon, "StrategyBeacon");
-        vm.label(helloWorldDeployment.helloWorldServiceManager, "HelloWorldServiceManager");
+        vm.label(helloWorldDeployment.helloWorldServiceManager, "CrowdFunding");
         vm.label(helloWorldDeployment.stakeRegistry, "StakeRegistry");
     }
 
@@ -242,34 +242,37 @@ contract HelloWorldTaskManagerSetup is Test {
     }
 
     function createTask(TrafficGenerator memory generator, string memory taskName) internal {
-        IHelloWorldServiceManager helloWorldServiceManager =
-            IHelloWorldServiceManager(helloWorldDeployment.helloWorldServiceManager);
+        ICrowdFunding helloWorldServiceManager =
+            ICrowdFunding(helloWorldDeployment.helloWorldServiceManager);
+        
+        uint256 goalAmount = 1 ether;   // Define goal amount for the task
+        uint256 duration = 30 days;     // Define duration for the task in seconds
 
         vm.prank(generator.key.addr);
-        helloWorldServiceManager.createNewTask(taskName);
+        helloWorldServiceManager.createNewTask(taskName, goalAmount, duration);
     }
 
-    function respondToTask(
-        Operator memory operator,
-        IHelloWorldServiceManager.Task memory task,
-        uint32 referenceTaskIndex
-    ) internal {
+    function respondToTask(uint32 taskIndex, string memory message) external {
+        ICrowdFunding helloWorldServiceManager = ICrowdFunding(helloWorldDeployment.helloWorldServiceManager);
+    
         // Create the message hash
-        bytes32 messageHash = keccak256(abi.encodePacked("Hello, ", task.name));
-
-        bytes memory signature = signWithSigningKey(operator, messageHash);
-
-        address[] memory operators = new address[](1);
-        operators[0]=operator.key.addr;
+        bytes32 messageHash = keccak256(abi.encodePacked(message));
+        bytes32 ethSignedMessageHash = ECDSAUpgradeable.toEthSignedMessageHash(messageHash);
+    
+        // Prepare the signature for responding to the task
+        bytes memory signature = signWithSigningKey(operators[0], ethSignedMessageHash);
+    
+        // Set up operator addresses and signatures for the response
+        address[] memory operatorsMem = new address[](1);
+        operatorsMem[0] = operators[0].key.addr;
         bytes[] memory signatures = new bytes[](1);
-        signatures[0]= signature;
-
-        bytes memory signedTask = abi.encode(operators, signatures, uint32(block.number));
-
-        IHelloWorldServiceManager(helloWorldDeployment.helloWorldServiceManager).respondToTask(
-            task, referenceTaskIndex, signedTask
-        );
+        signatures[0] = signature;
+    
+        bytes memory signedTask = abi.encode(operatorsMem, signatures, uint32(block.number));
+    
+        helloWorldServiceManager.respondToTask(taskIndex, message);
     }
+   
 }
 
 contract HelloWorldServiceManagerInitialization is HelloWorldTaskManagerSetup {
@@ -306,7 +309,7 @@ contract RegisterOperator is HelloWorldTaskManagerSetup {
 
     IDelegationManager internal delegationManager;
     AVSDirectory internal avsDirectory;
-    IHelloWorldServiceManager internal sm;
+    ICrowdFunding internal sm;
     ECDSAStakeRegistry internal stakeRegistry;
 
     function setUp() public virtual override {
@@ -314,7 +317,7 @@ contract RegisterOperator is HelloWorldTaskManagerSetup {
         /// Setting to internal state for convenience
         delegationManager = IDelegationManager(coreDeployment.delegationManager);
         avsDirectory = AVSDirectory(coreDeployment.avsDirectory);
-        sm = IHelloWorldServiceManager(helloWorldDeployment.helloWorldServiceManager);
+        sm = ICrowdFunding(helloWorldDeployment.helloWorldServiceManager);
         stakeRegistry = ECDSAStakeRegistry(helloWorldDeployment.stakeRegistry);
 
         addStrategy(address(mockToken));
@@ -362,18 +365,23 @@ contract RegisterOperator is HelloWorldTaskManagerSetup {
 }
 
 contract CreateTask is HelloWorldTaskManagerSetup {
-    IHelloWorldServiceManager internal sm;
+    ICrowdFunding internal sm;
 
     function setUp() public override {
         super.setUp();
-        sm = IHelloWorldServiceManager(helloWorldDeployment.helloWorldServiceManager);
+        sm = ICrowdFunding(helloWorldDeployment.helloWorldServiceManager);
     }
 
     function testCreateTask() public {
         string memory taskName = "Test Task";
+        uint256 goalAmount = 1 ether;   // Define goal amount for the task
+        uint256 duration = 30 days;     // Define duration for the task in seconds
 
         vm.prank(generator.key.addr);
-        IHelloWorldServiceManager.Task memory newTask = sm.createNewTask(taskName);
+        uint32 taskIndex = sm.createNewTask(taskName, goalAmount, duration);  // Store the task index
+
+        // Optionally, add assertions here
+        assertEq(taskIndex, 0); // Example: if this is the first task, it should be at index 0
     }
 }
 
@@ -386,7 +394,7 @@ contract RespondToTask is HelloWorldTaskManagerSetup {
 
     IDelegationManager internal delegationManager;
     AVSDirectory internal avsDirectory;
-    IHelloWorldServiceManager internal sm;
+    ICrowdFunding internal sm;
     ECDSAStakeRegistry internal stakeRegistry;
 
     function setUp() public override {
@@ -394,7 +402,7 @@ contract RespondToTask is HelloWorldTaskManagerSetup {
 
         delegationManager = IDelegationManager(coreDeployment.delegationManager);
         avsDirectory = AVSDirectory(coreDeployment.avsDirectory);
-        sm = IHelloWorldServiceManager(helloWorldDeployment.helloWorldServiceManager);
+        sm = ICrowdFunding(helloWorldDeployment.helloWorldServiceManager);
         stakeRegistry = ECDSAStakeRegistry(helloWorldDeployment.stakeRegistry);
 
         addStrategy(address(mockToken));
@@ -415,22 +423,32 @@ contract RespondToTask is HelloWorldTaskManagerSetup {
     }
 
     function testRespondToTask() public {
+        // Define the task
         string memory taskName = "TestTask";
-        IHelloWorldServiceManager.Task memory newTask = sm.createNewTask(taskName);
-        uint32 taskIndex = sm.latestTaskNum() - 1;
+        uint256 goalAmount = 1 ether;
+        uint256 duration = 30 days;
+        //operatorsMem 
+        address[] memory operatorsMem = new address[](1);
+        bytes[] memory signatures = new bytes[](1);
 
+        vm.prank(generator.key.addr);
+        uint32 taskIndex = sm.createNewTask(taskName, goalAmount, duration);
+
+        // Prepare the signature for responding to the task
         bytes32 messageHash = keccak256(abi.encodePacked("Hello, ", taskName));
         bytes32 ethSignedMessageHash = messageHash.toEthSignedMessageHash();
-        bytes memory signature = signWithSigningKey(operators[0], ethSignedMessageHash); // TODO: Use signing key after changes to service manager
+        bytes memory signature = signWithSigningKey(operators[0], ethSignedMessageHash);
 
-        address[] memory operatorsMem = new address[](1);
-        operatorsMem[0]=operators[0].key.addr;
-        bytes[] memory signatures = new bytes[](1);
-        signatures[0]= signature;
+        // Set up operator addresses and signatures for the response
+        address;
+        operatorsMem[0] = operators[0].key.addr;
+        bytes;
+        signatures[0] = signature;
 
         bytes memory signedTask = abi.encode(operatorsMem, signatures, uint32(block.number));
 
-        vm.roll(block.number+1);
-        sm.respondToTask(newTask, taskIndex, signedTask);
+        vm.roll(block.number + 1);
+        sm.respondToTask(taskIndex, "Hello, TestTask");  // Updated respondToTask call
     }
 }
+

@@ -13,12 +13,56 @@
         "internalType": "address"
       },
       {
+        "name": "_rewardsCoordinator",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
         "name": "_delegationManager",
         "type": "address",
         "internalType": "address"
       }
     ],
     "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "allCampaigns",
+    "inputs": [
+      {
+        "name": "",
+        "type": "uint32",
+        "internalType": "uint32"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "name",
+        "type": "string",
+        "internalType": "string"
+      },
+      {
+        "name": "taskCreatedBlock",
+        "type": "uint32",
+        "internalType": "uint32"
+      },
+      {
+        "name": "goalAmount",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "fundsRaised",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "deadline",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
   },
   {
     "type": "function",
@@ -72,6 +116,25 @@
         "name": "",
         "type": "address",
         "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "checkCampaignStatus",
+    "inputs": [
+      {
+        "name": "campaignId",
+        "type": "uint32",
+        "internalType": "uint32"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
       }
     ],
     "stateMutability": "view"
@@ -136,25 +199,23 @@
         "name": "name",
         "type": "string",
         "internalType": "string"
+      },
+      {
+        "name": "goalAmount",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "duration",
+        "type": "uint256",
+        "internalType": "uint256"
       }
     ],
     "outputs": [
       {
         "name": "",
-        "type": "tuple",
-        "internalType": "struct IHelloWorldServiceManager.Task",
-        "components": [
-          {
-            "name": "name",
-            "type": "string",
-            "internalType": "string"
-          },
-          {
-            "name": "taskCreatedBlock",
-            "type": "uint32",
-            "internalType": "uint32"
-          }
-        ]
+        "type": "uint32",
+        "internalType": "uint32"
       }
     ],
     "stateMutability": "nonpayable"
@@ -171,6 +232,19 @@
     ],
     "outputs": [],
     "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "donateToTask",
+    "inputs": [
+      {
+        "name": "campaignId",
+        "type": "uint32",
+        "internalType": "uint32"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "payable"
   },
   {
     "type": "function",
@@ -277,31 +351,14 @@
     "name": "respondToTask",
     "inputs": [
       {
-        "name": "task",
-        "type": "tuple",
-        "internalType": "struct IHelloWorldServiceManager.Task",
-        "components": [
-          {
-            "name": "name",
-            "type": "string",
-            "internalType": "string"
-          },
-          {
-            "name": "taskCreatedBlock",
-            "type": "uint32",
-            "internalType": "uint32"
-          }
-        ]
-      },
-      {
-        "name": "referenceTaskIndex",
+        "name": "taskIndex",
         "type": "uint32",
         "internalType": "uint32"
       },
       {
-        "name": "signature",
-        "type": "bytes",
-        "internalType": "bytes"
+        "name": "message",
+        "type": "string",
+        "internalType": "string"
       }
     ],
     "outputs": [],
@@ -374,6 +431,31 @@
   },
   {
     "type": "event",
+    "name": "DonationReceived",
+    "inputs": [
+      {
+        "name": "campaignId",
+        "type": "uint32",
+        "indexed": true,
+        "internalType": "uint32"
+      },
+      {
+        "name": "amount",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "donor",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
     "name": "Initialized",
     "inputs": [
       {
@@ -399,7 +481,7 @@
         "name": "task",
         "type": "tuple",
         "indexed": false,
-        "internalType": "struct IHelloWorldServiceManager.Task",
+        "internalType": "struct ICrowdFunding.Task",
         "components": [
           {
             "name": "name",
@@ -410,6 +492,21 @@
             "name": "taskCreatedBlock",
             "type": "uint32",
             "internalType": "uint32"
+          },
+          {
+            "name": "goalAmount",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "fundsRaised",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "deadline",
+            "type": "uint256",
+            "internalType": "uint256"
           }
         ]
       }
@@ -465,22 +562,10 @@
         "internalType": "uint32"
       },
       {
-        "name": "task",
-        "type": "tuple",
+        "name": "name",
+        "type": "string",
         "indexed": false,
-        "internalType": "struct IHelloWorldServiceManager.Task",
-        "components": [
-          {
-            "name": "name",
-            "type": "string",
-            "internalType": "string"
-          },
-          {
-            "name": "taskCreatedBlock",
-            "type": "uint32",
-            "internalType": "uint32"
-          }
-        ]
+        "internalType": "string"
       },
       {
         "name": "operator",

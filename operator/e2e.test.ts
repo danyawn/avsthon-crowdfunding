@@ -4,7 +4,7 @@ import { exec } from 'child_process';
 import fs from 'fs/promises';
 import path from 'path';
 import util from 'util';
-import { ethers } from "ethers";
+import { ethers, parseEther } from "ethers";
 import * as dotenv from "dotenv";
 
 dotenv.config();
@@ -63,7 +63,7 @@ describe('Operator Functionality', () => {
 
     const delegationManagerABI = await loadJsonFile(path.join(__dirname, '..', 'abis', 'IDelegationManager.json'));
     const ecdsaRegistryABI = await loadJsonFile(path.join(__dirname, '..', 'abis', 'ECDSAStakeRegistry.json'));
-    const helloWorldServiceManagerABI = await loadJsonFile(path.join(__dirname, '..', 'abis', 'HelloWorldServiceManager.json'));
+    const helloWorldServiceManagerABI = await loadJsonFile(path.join(__dirname, '..', 'abis', 'CrowdFunding.json'));
     const avsDirectoryABI = await loadJsonFile(path.join(__dirname, '..', 'abis', 'IAVSDirectory.json'));
 
     delegationManager = new ethers.Contract(deployment.core.addresses.delegation, delegationManagerABI, signer);
@@ -115,8 +115,10 @@ describe('Operator Functionality', () => {
 
   it('should create a new task', async () => {
     const taskName = "Steven";
+    const goalAmount = parseEther("1");
+    const duration = 86400;
 
-    const tx = await helloWorldServiceManager.createNewTask(taskName);
+    const tx = await helloWorldServiceManager.createNewTask(taskName, goalAmount, duration);
     await tx.wait();
   });
 
